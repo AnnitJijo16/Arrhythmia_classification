@@ -31,7 +31,7 @@ cnn_lstm_model = load_model('best_model_1.h5')
 test_data = pd.read_csv('test_data.csv')
 
 
-# In[6]:
+# In[4]:
 
 
 label_dict = {
@@ -52,24 +52,32 @@ label_dict = {
 }
 
 
-# In[9]:
+# In[5]:
 
 
 import pickle
 
 
-# In[22]:
+# In[6]:
+
+with open('model_rf.pkl', 'rb') as file:
+    rf_model = pickle.load(file)
 
 
-# Instantiate the Flask app
+from tensorflow.keras.models import load_model,Model
+
 app = Flask(__name__)
 
+
+
+# Define the index route
 @app.route('/')
 def index():
     patients = test_data['Participant'].unique().tolist()
     models = ['CNN', 'CNN-LSTM', 'Random Forest']  # Model names
     return render_template('index.html', patients=patients, models=models)
 
+# Define the predict route
 @app.route('/predict', methods=['POST'])
 def predict():
     patient = request.form['patient']
@@ -77,32 +85,31 @@ def predict():
     
     # Filter test data for the selected patient
     patient_data = test_data[test_data['Participant'] == patient].drop(['Participant', 'Label'], axis=1)
-    
+
     if model_name == 'CNN':
-        # Preprocess data for CNN model
+        #CNN model
+        print(patient_data)
         X = np.array(patient_data).reshape(len(patient_data), patient_data.shape[1], 1)
         prediction_proba = cnn_model.predict(X)
         prediction = np.argmax(prediction_proba, axis=1)
     elif model_name == 'CNN-LSTM':
-        # Preprocess data for CNN-LSTM model
+        #  CNN-LSTM model
         X = np.array(patient_data).reshape(len(patient_data), patient_data.shape[1], 1)
         prediction_proba = cnn_lstm_model.predict(X)
         prediction = np.argmax(prediction_proba, axis=1)
     elif model_name == 'Random Forest':
-        file = open('model_rf.pkl', 'rb')
-        model = pickle.load(file)
-        X = np.array(patient_data)
-        prediction= model.predict(X)
-        
-    
-    prediction_class =label_dict[prediction[0]]  # Assuming prediction is a single value
-    
+        # RF model
+        X = np.array(patient_data).reshape(len(patient_data), patient_data.shape[1], 1)
+        prediction_proba = cnn_model.predict(X)
+        prediction = np.argmax(prediction_proba, axis=1) 
+    prediction_class = label_dict[prediction[0]]  # Assuming prediction is a single value
+
     patients = test_data['Participant'].unique().tolist()
     
     return render_template('index.html', patients=patients, prediction=prediction_class, patient=patient, model=model_name)
 
 
-# In[23]:
+# In[7]:
 
 
 # Run the Flask app
